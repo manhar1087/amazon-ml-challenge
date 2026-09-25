@@ -1,0 +1,36 @@
+{
+  "source2_path": "c:/Users/manha/Downloads/amazon_ml_challenge/6ab10eb3b23ba_student_resource/student_resource/work/parquet/train/source2.parquet",
+  "source3_path": "c:/Users/manha/Downloads/amazon_ml_challenge/6ab10eb3b23ba_student_resource/student_resource/work/parquet/train/source3.parquet",
+  "source2_row_count": 5034616,
+  "source3_row_count": 5285603,
+  "total_available_rows": 10320219,
+  "n_selected": 200000,
+  "first_10_entity_ids": [
+    "S2-166376419",
+    "S2-764573417",
+    "S2-639257739",
+    "S2-163963287",
+    "S2-49942811",
+    "S2-138046867",
+    "S2-584977605",
+    "S2-277444929",
+    "S2-721031885",
+    "S2-508602797"
+  ],
+  "last_10_entity_ids": [
+    "S2-148809616",
+    "S2-849696428",
+    "S2-886539195",
+    "S2-122612156",
+    "S2-239013684",
+    "S2-872775914",
+    "S2-959580117",
+    "S2-671450003",
+    "S2-844278037",
+    "S2-153606451"
+  ],
+  "corpus_hash": "3ca54854adf5d5dc09c552c4e019ecd89721a21a89d95427360c11a4ed9c2356",
+  "hash_recomputed": "3ca54854adf5d5dc09c552c4e019ecd89721a21a89d95427360c11a4ed9c2356",
+  "hash_equal": true,
+  "timestamp": "2026-09-25T15:39:12"
+}

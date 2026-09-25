@@ -1,0 +1,78 @@
+{
+  "status": "SUCCESS",
+  "source2_path": "work/parquet/train/source2.parquet",
+  "source3_path": "work/parquet/train/source3.parquet",
+  "source2_rows": 5034616,
+  "source3_rows": 5285603,
+  "total_corpus_rows": 10320219,
+  "chunk_size": 50000,
+  "channels": {
+    "name_word": {
+      "config": {
+        "name": "name_word",
+        "analyzer": "word",
+        "ngram_range": [
+          1,
+          1
+        ],
+        "min_df": 2,
+        "max_df": 0.01,
+        "col": "latin_name",
+        "K": 50
+      },
+      "vocab_size": 276917,
+      "df_runtime_s": 79.67980480194092,
+      "df_peak_rss_mib": 293.796875,
+      "csr_runtime_s": 195.12516617774963,
+      "csr_peak_rss_mib": 318.39453125,
+      "num_chunks": 207,
+      "total_nnz": 23835568,
+      "csr_disk_usage_bytes": 727455351
+    },
+    "address_word": {
+      "config": {
+        "name": "address_word",
+        "analyzer": "word",
+        "ngram_range": [
+          1,
+          2
+        ],
+        "min_df": 2,
+        "max_df": 0.02,
+        "col": "latin_address",
+        "K": 20
+      },
+      "vocab_size": 4953784,
+      "df_runtime_s": 396.2349877357483,
+      "df_peak_rss_mib": 1316.6953125,
+      "csr_runtime_s": 411.23392248153687,
+      "csr_peak_rss_mib": 1241.5703125,
+      "num_chunks": 207,
+      "total_nnz": 112660296,
+      "csr_disk_usage_bytes": 1438053176
+    },
+    "name_char": {
+      "config": {
+        "name": "name_char",
+        "analyzer": "char_wb",
+        "ngram_range": [
+          3,
+          4
+        ],
+        "min_df": 2,
+        "max_df": 0.005,
+        "col": "latin_name",
+        "K": 20
+      },
+      "vocab_size": 281091,
+      "df_runtime_s": 283.8773467540741,
+      "df_peak_rss_mib": 1234.95703125,
+      "csr_runtime_s": 509.4676322937012,
+      "csr_peak_rss_mib": 377.78515625,
+      "num_chunks": 207,
+      "total_nnz": 147453990,
+      "csr_disk_usage_bytes": 1716402728
+    }
+  },
+  "total_runtime_s": 1875.6360840797424
+}

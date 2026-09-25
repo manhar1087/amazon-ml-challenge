@@ -1,4 +1,36 @@
+# Python
 __pycache__/
-*.pyc
-.pytest_cache/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Challenge data
+dataset/
+
+# Generated outputs / caches
 work/
+output/
+incremental_csr_output/
+retrieval_setup/
+tmp_ext_df/
+tmp_ext_df_streaming/
+
+# Large/generated artifacts
+*.log
+*_output.txt
+*.parquet
+*.npz
+*.npy
+
+# Local models/artifacts
+*.pkl
+
+# Temporary files
+tmp/
+temp/
