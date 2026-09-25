@@ -80,5 +80,51 @@ def test_accented_characters():
     res = add_normalized_columns(df).collect()
     # Unicode preserved in normalized
     assert res["normalized_name"][0] == "café françoise"
-    # Unidecode translates Accents
     assert res["latin_name"][0] == "cafe francoise"
+
+def test_structural_extraction_edge_cases():
+    df = pl.DataFrame({
+        "entity_id": ["1", "2", "3", "4", "5", "6", "7"],
+        "business_address": [
+            "123A Main St, Apt 4B, New York, NY 10001", # US, alphanumeric house, apt number
+            "Flat 402, 12th Cross, 560001 Bangalore", # India, multiple numerics, no house number at start
+            "10 Rue de la Paix, 75002 Paris", # France
+            "No postal code here", # Missing postal
+            "Just 123456 as house number", # 6-digit house number without postal
+            None, # Missing address completely
+            "123456 Main St, 90210" # 6-digit house, 5-digit postal
+        ]
+    }).lazy()
+    
+    # We need to test the logic directly or via add_normalized_columns
+    df = df.with_columns(pl.col("entity_id").alias("business_name")) # mock name
+    res = add_normalized_columns(df).collect()
+    
+    # 1: "123A Main St, Apt 4B, New York, NY 10001"
+    assert res.filter(pl.col("entity_id") == "1")["house_number"][0] == "123A"
+    assert res.filter(pl.col("entity_id") == "1")["postal_code"][0] == "10001"
+    
+    # 2: "Flat 402, 12th Cross, 560001 Bangalore"
+    assert res.filter(pl.col("entity_id") == "2")["house_number"][0] == ""
+    assert res.filter(pl.col("entity_id") == "2")["postal_code"][0] == "560001"
+    
+    # 3: "10 Rue de la Paix, 75002 Paris"
+    assert res.filter(pl.col("entity_id") == "3")["house_number"][0] == "10"
+    assert res.filter(pl.col("entity_id") == "3")["postal_code"][0] == "75002"
+    
+    # 4: "No postal code here"
+    assert res.filter(pl.col("entity_id") == "4")["postal_code"][0] == ""
+    assert res.filter(pl.col("entity_id") == "4")["house_number"][0] == ""
+    
+    # 5: "Just 123456 as house number"
+    # AMBIGUOUS CASE: This incorrectly extracts 123456 as postal code because it's a 6-digit block
+    # and the regex greedily finds it. We document this false positive as a limitation.
+    assert res.filter(pl.col("entity_id") == "5")["postal_code"][0] == "123456"
+    
+    # 6: None
+    assert res.filter(pl.col("entity_id") == "6")["postal_code"][0] == ""
+    assert res.filter(pl.col("entity_id") == "6")["house_number"][0] == ""
+    
+    # 7: "123456 Main St, 90210"
+    assert res.filter(pl.col("entity_id") == "7")["house_number"][0] == "123456"
+    assert res.filter(pl.col("entity_id") == "7")["postal_code"][0] == "90210"

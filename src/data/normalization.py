@@ -3,7 +3,14 @@ from unidecode import unidecode
 import re
 
 def latinize_series(s: pl.Series) -> pl.Series:
-    """Applies unidecode to convert text to ASCII/Latin representation."""
+    """
+    Applies unidecode to convert text to an ASCII/Latin representation.
+    
+    WARNING: This is a simplistic Latin transliteration (e.g. राम -> raam). 
+    It is NOT a solved cross-script matching solution. It provides a baseline 
+    ASCII bridge, but actual cross-script matching may require learning token 
+    correspondences or advanced phonetic embeddings later.
+    """
     # Handle nulls gracefully by mapping to empty string or returning null
     return s.fill_null("").map_elements(lambda x: unidecode(x) if x else "", return_dtype=pl.String)
 
@@ -61,11 +68,19 @@ def add_normalized_columns(lf: pl.LazyFrame) -> pl.LazyFrame:
     ])
     
     # Address Structural Extraction
-    # Postal code: US (5 or 5+4), India (6), France (5)
-    # House number: leading digits followed by optional letter
+    # Postal code: US (5 or 5+4), India (6), France (5). Greedy match to find the last occurrence.
+    # House number: leading digits followed by optional letter.
     lf = lf.with_columns([
         pl.col("business_address").str.extract(r".*\b(\d{5}(?:-\d{4})?|\d{6})\b", 1).fill_null("").alias("postal_code"),
         pl.col("business_address").str.extract(r"^\s*(\d+[a-zA-Z]?)\b", 1).fill_null("").alias("house_number")
+    ])
+    
+    # If the only 5-6 digit number was the house number, it's not a postal code.
+    lf = lf.with_columns([
+        pl.when(pl.col("postal_code") == pl.col("house_number"))
+        .then(pl.lit(""))
+        .otherwise(pl.col("postal_code"))
+        .alias("postal_code")
     ])
     
     return lf
