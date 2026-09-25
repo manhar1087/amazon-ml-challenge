@@ -68,8 +68,11 @@ def build_features_v3(pairs_lf: pl.LazyFrame, s1_lf: pl.LazyFrame, s23_lf: pl.La
     s23_cols = s1_cols.copy()
     s23_cols.append("source")
     
+    cand_ids = pairs_lf.select("candidate_entity_id").unique().collect().to_series()
+    s23_filtered = s23_lf.filter(pl.col("entity_id").is_in(cand_ids))
+    
     df = pairs_lf.join(s1_lf.select(s1_cols), left_on="source1_entity_id", right_on="entity_id", how="left")
-    df = df.join(s23_lf.select(s23_cols), left_on="candidate_entity_id", right_on="entity_id", how="left", suffix="_right")
+    df = df.join(s23_filtered.select(s23_cols), left_on="candidate_entity_id", right_on="entity_id", how="left", suffix="_right")
     
     df = df.collect()
     

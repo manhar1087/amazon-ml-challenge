@@ -1,0 +1,102 @@
+[
+  {
+    "name": "f_name_exact",
+    "type": "Float32"
+  },
+  {
+    "name": "f_latin_exact",
+    "type": "Float32"
+  },
+  {
+    "name": "f_addr_exact",
+    "type": "Float32"
+  },
+  {
+    "name": "f_postal_match",
+    "type": "Float32"
+  },
+  {
+    "name": "f_house_match",
+    "type": "Float32"
+  },
+  {
+    "name": "f_missing_addr_s1",
+    "type": "Float32"
+  },
+  {
+    "name": "f_missing_addr_s23",
+    "type": "Float32"
+  },
+  {
+    "name": "f_name_len_ratio",
+    "type": "Float32"
+  },
+  {
+    "name": "f_name_jaro",
+    "type": "Float32"
+  },
+  {
+    "name": "f_name_lev",
+    "type": "Float32"
+  },
+  {
+    "name": "f_name_jaccard",
+    "type": "Float32"
+  },
+  {
+    "name": "f_addr_jaro",
+    "type": "Float32"
+  },
+  {
+    "name": "f_addr_jaccard",
+    "type": "Float32"
+  },
+  {
+    "name": "f_cross_name_addr_jaro",
+    "type": "Float32"
+  },
+  {
+    "name": "f_cross_strong_both",
+    "type": "Float32"
+  },
+  {
+    "name": "f_retr_exact_name",
+    "type": "Float32"
+  },
+  {
+    "name": "f_retr_exact_addr",
+    "type": "Float32"
+  },
+  {
+    "name": "f_retr_structural",
+    "type": "Float32"
+  },
+  {
+    "name": "f_retr_cross_script",
+    "type": "Float32"
+  },
+  {
+    "name": "f_retr_abbr",
+    "type": "Float32"
+  },
+  {
+    "name": "f_retr_tfidf_name",
+    "type": "Float32"
+  },
+  {
+    "name": "f_retr_tfidf_addr",
+    "type": "Float32"
+  },
+  {
+    "name": "f_retr_tfidf_char",
+    "type": "Float32"
+  },
+  {
+    "name": "f_retr_count",
+    "type": "Float32"
+  },
+  {
+    "name": "f_ctx_cand_count",
+    "type": "Float32"
+  }
+]

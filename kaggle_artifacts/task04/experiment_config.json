@@ -1,0 +1,14 @@
+{
+  "roc_auc": 0.9947162126989775,
+  "pr_auc": 0.9253432578997749,
+  "pair_precision": 0.7502144623303224,
+  "pair_recall": 0.8594138389502284,
+  "entity_macro_f05": 0.7309659217785018,
+  "train_s1_count": 10000,
+  "val_s1_count": 10000,
+  "positive_pair_coverage_after_blocking": 0.9400543384010637,
+  "negative_sampling": "100% hard (exact), 10% random easy",
+  "one_parent_property_enforced": false,
+  "one_parent_property_valid": false,
+  "timestamp": 1790356608.949153
+}

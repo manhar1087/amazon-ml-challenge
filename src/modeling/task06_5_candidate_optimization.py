@@ -214,9 +214,29 @@ def run():
     s1_eval = s1.filter(pl.col("entity_id").is_in(eval_s1_ids))
     
     # We need the corpus mapping for TF-IDF
-    import pickle
-    with open("retrieval_setup/tfidf_name/corpus_eids.pkl", "rb") as f:
-        corpus_eids = pickle.load(f)
+    corpus_cache_path = "work/task06_candidate_optimization/corpus_eids.npy"
+    os.makedirs("work/task06_candidate_optimization", exist_ok=True)
+    if os.path.exists(corpus_cache_path):
+        print("Loading cached corpus entity IDs...")
+        corpus_eids = np.load(corpus_cache_path).tolist()
+    else:
+        print("Generating deterministic corpus entity IDs (S2 + S3)...")
+        s2_eids = frames["train_source2"].select("entity_id").collect()["entity_id"].to_list()
+        s3_eids = frames["train_source3"].select("entity_id").collect()["entity_id"].to_list()
+        
+        print(f"S2 count: {len(s2_eids)}")
+        print(f"S3 count: {len(s3_eids)}")
+        
+        corpus_eids = s2_eids + s3_eids
+        print(f"Total Corpus ID count: {len(corpus_eids)}")
+        
+        assert len(s2_eids) == 5034616, f"Expected 5034616 S2 rows, got {len(s2_eids)}"
+        assert len(s3_eids) == 5285603, f"Expected 5285603 S3 rows, got {len(s3_eids)}"
+        assert len(corpus_eids) == 10320219, f"Expected 10320219 total rows, got {len(corpus_eids)}"
+        assert len(set(corpus_eids)) == 10320219, "Corpus entity IDs contain duplicates!"
+        
+        print("Caching corpus entity IDs...")
+        np.save(corpus_cache_path, np.array(corpus_eids))
 
     # 1. Generate Deterministic Blocks for Tuning Set
     print("Executing Deterministic Blocks on Tuning Set...")

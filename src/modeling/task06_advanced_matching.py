@@ -22,8 +22,8 @@ def run_task06(smoke=False):
     
     if smoke:
         print("SMOKE TEST: Subsampling...")
-        train_s1_ids = train_s1_ids[:100]
-        val_s1_ids = val_s1_ids[:100]
+        train_s1_ids = train_s1_ids[:20]
+        val_s1_ids = val_s1_ids[:20]
         
     print("Loading existing Task 04 candidate artifact...")
     all_cands = pl.read_parquet("work/candidates/task04_train_val_cands.parquet")
