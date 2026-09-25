@@ -4,11 +4,11 @@ import numpy as np
 import lightgbm as lgb
 
 from src.data.loader import load_all_data
-from src.features.feature_engineering_v2 import build_features_v2
 from src.features.feature_engineering_v3 import build_features_v3
+from src.features.feature_engineering_v4 import build_features_v4
 from src.modeling.task05_entity_decoding import compute_metrics, apply_policy
 
-def run_task06_2(subset=0):
+def run_task06_4(subset=0):
     print("Loading data...")
     frames = load_all_data()
     s1 = frames["train_source1"].collect()
@@ -66,13 +66,13 @@ def run_task06_2(subset=0):
         ).alias("label")
     ).sort("source1_entity_id")
     
-    print("Building Features V2...")
-    t_v2_train = build_features_v2(train_sampled.lazy(), s1.lazy(), s23_lf)
-    t_v2_val = build_features_v2(val_df.lazy(), s1.lazy(), s23_lf)
-    
     print("Building Features V3...")
     t_v3_train = build_features_v3(train_sampled.lazy(), s1.lazy(), s23_lf)
     t_v3_val = build_features_v3(val_df.lazy(), s1.lazy(), s23_lf)
+    
+    print("Building Features V4...")
+    t_v4_train = build_features_v4(train_sampled.lazy(), s1.lazy(), s23_lf)
+    t_v4_val = build_features_v4(val_df.lazy(), s1.lazy(), s23_lf)
     
     params_bin = {
         'objective': 'binary',
@@ -85,8 +85,8 @@ def run_task06_2(subset=0):
     
     models = {}
     feature_sets = {
-        "Binary_V2": (t_v2_train, t_v2_val),
-        "Binary_V3": (t_v3_train, t_v3_val)
+        "Binary_V3": (t_v3_train, t_v3_val),
+        "Binary_V4": (t_v4_train, t_v4_val)
     }
     
     val_ids_sorted = sorted(val_s1_ids)
@@ -132,6 +132,18 @@ def run_task06_2(subset=0):
         tune_preds = val_df_pred.filter(pl.col("source1_entity_id").is_in(tune_s1_ids))
         eval_preds = val_df_pred.filter(pl.col("source1_entity_id").is_in(eval_s1_ids))
         
+        # Candidate Oracle on Eval S1s
+        eval_gt_pairs = set()
+        for sid in eval_s1_ids:
+            for c in gt_dict.get(sid, set()):
+                eval_gt_pairs.add((sid, c))
+        eval_cand_pairs = set()
+        for row in eval_preds.select(["source1_entity_id", "candidate_entity_id"]).iter_rows():
+            if row[1] is not None:
+                eval_cand_pairs.add(row)
+        oracle_retrieved = len(eval_gt_pairs & eval_cand_pairs)
+        oracle_total = len(eval_gt_pairs)
+        
         experiments = []
         for th in [0.5, 0.7, 0.9, 0.926, 0.95]:
             pol = {"type": "threshold", "threshold": th}
@@ -162,6 +174,7 @@ def run_task06_2(subset=0):
             "pr_auc": pr_auc,
             "best_tuning_policy": best_tune_exp,
             "evaluation_metrics": eval_mets,
+            "eval_oracle_recall": oracle_retrieved / oracle_total if oracle_total > 0 else 0,
             "feature_importance_gain": imp_dict
         }
         
@@ -174,8 +187,6 @@ def run_task06_2(subset=0):
             best_policy = best_tune_exp["policy"]
             best_tune_metrics = best_tune_exp["metrics"]
             best_eval_metrics = eval_mets
-            best_raw_eval_preds = eval_preds
-            best_raw_tune_preds = tune_preds
 
     print("\n=========================================")
     print(f"WINNING MODEL: {best_model_name}")
@@ -184,11 +195,8 @@ def run_task06_2(subset=0):
     print("=========================================\n")
     
     os.makedirs("work/task06", exist_ok=True)
-    with open("work/task06/model_comparison_v3.json", "w") as f:
+    with open("work/task06/model_comparison_v4.json", "w") as f:
         json.dump(comparison_results, f, indent=2)
-        
-    best_raw_eval_preds.select(["source1_entity_id", "candidate_entity_id", "pred"]).write_parquet("work/task06/v3_raw_eval_predictions.parquet")
-    best_raw_tune_preds.select(["source1_entity_id", "candidate_entity_id", "pred"]).write_parquet("work/task06/v3_raw_tune_predictions.parquet")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -196,4 +204,4 @@ if __name__ == "__main__":
     parser.add_argument("--subset", type=int, default=0)
     args = parser.parse_args()
     subset = 20 if args.smoke else args.subset
-    run_task06_2(subset=subset)
+    run_task06_4(subset=subset)
