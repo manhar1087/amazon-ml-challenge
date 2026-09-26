@@ -455,7 +455,7 @@ def run():
         c_new_ph_name_eval = postal_house_partial_name_blocking(s1_eval.lazy(), s23_lf)
         eval_blocks.append(c_new_ph_name_eval)
         
-    eval_metrics = evaluate_config(eval_blocks, gt_eval, eval_s1_ids)
+    eval_metrics = evaluate_config(eval_blocks, gt_eval, eval_s1_ids, "eval_combined")
     
     print(f"[Combined_Best Untouched Eval] Pair Recall: {eval_metrics['pair_recall']:.4f}, Macro Recall: {eval_metrics['macro_recall']:.4f}, Oracle F0.5: {eval_metrics['oracle_macro_f05']:.4f}, Avg Cands: {eval_metrics['avg_cands']:.1f}")
     
