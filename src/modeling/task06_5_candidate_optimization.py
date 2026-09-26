@@ -2,6 +2,15 @@ import os, json, gc, time, shutil
 import polars as pl
 import numpy as np
 
+def numpy_encoder(obj):
+    if isinstance(obj, np.integer):
+        return int(obj)
+    if isinstance(obj, np.floating):
+        return float(obj)
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
 # We import the existing blocks and TF-IDF tools
 from src.data.loader import load_all_data
 from src.blocking.exact import exact_name_blocking, exact_address_blocking
@@ -372,7 +381,7 @@ def run():
             results[name]["cand_increase_pct"] = inc
             
         with open(partial_json_path, "w") as f:
-            json.dump(results, f, indent=2)
+            json.dump(results, f, indent=2, default=numpy_encoder)
             
     # Challenge-aware selection logic
     best_combo_blocks = det_base + [tf_name_50, tf_addr_20, tf_char_20] # start with baseline
@@ -397,11 +406,11 @@ def run():
         metrics["cand_increase_pct"] = inc
         results[combo_name] = metrics
         with open(partial_json_path, "w") as f:
-            json.dump(results, f, indent=2)
+            json.dump(results, f, indent=2, default=numpy_encoder)
     
     os.makedirs("work/task06_candidate_optimization", exist_ok=True)
     with open("work/task06_candidate_optimization/candidate_comparison.json", "w") as f:
-        json.dump(results, f, indent=2)
+        json.dump(results, f, indent=2, default=numpy_encoder)
         
     print("\n--- TUNING RESULTS ---")
     for name, mets in results.items():
@@ -444,7 +453,7 @@ def run():
         "use_postal_house_fuzzy_name": results["Exp_NewBlock_PH_Name"]["pair_recall"] - baseline_metrics["pair_recall"] > 0.001 and results["Exp_NewBlock_PH_Name"]["cand_increase_pct"] < 20
     }
     with open("work/task06_candidate_optimization/selected_candidate_config.json", "w") as f:
-        json.dump(out_config, f, indent=2)
+        json.dump(out_config, f, indent=2, default=numpy_encoder)
     
     # Re-generate optimized candidates for both train and val and save
     print("\n--- PHASE 7: GENERATE OPTIMIZED CANDIDATES ---")
