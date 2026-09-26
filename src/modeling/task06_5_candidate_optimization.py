@@ -101,10 +101,21 @@ def chunked_topk(Q, chunk_dirs, n_features, K, s1_ids, corpus_entity_ids, query_
                 
     return out_s1, out_s23
 
-def run_tfidf_chunked_local(s1, col, analyzer, ngram, k, channel_name, base_channel, corpus_eids, setup_dir="retrieval_setup"):
-    print(f"[{channel_name}] Loading precomputed vocab and IDF...")
-    sdir = os.path.join(setup_dir, base_channel)
+def run_tfidf_chunked_local(s1, col, analyzer, ngram, k, channel_name, base_channel, corpus_eids, split_name, setup_dir="retrieval_setup"):
+    cache_dir = "work/task06_candidate_optimization/cache"
+    os.makedirs(cache_dir, exist_ok=True)
+    cache_path = os.path.join(cache_dir, f"{split_name}_{channel_name}_{k}.parquet")
     
+    sdir = os.path.join(setup_dir, base_channel)
+    with open(os.path.join(sdir, "vocab.json")) as f:
+        vocab_size = len(json.load(f))
+        
+    if os.path.exists(cache_path):
+        print(f"[{channel_name}] Loading cached Top-{k} retrieval for {split_name}...")
+        df = pl.read_parquet(cache_path)
+        return df, vocab_size
+        
+    print(f"[{channel_name}] Loading precomputed vocab and IDF...")
     with open(os.path.join(sdir, "vocab.json")) as f:
         vocab = json.load(f)
     idf = np.load(os.path.join(sdir, "idf.npy"))
@@ -116,7 +127,6 @@ def run_tfidf_chunked_local(s1, col, analyzer, ngram, k, channel_name, base_chan
     print(f"[{channel_name}] Transforming S1 Queries...")
     X_q = transform_docs(s1_texts, vocab, idf, analyzer_func)
     
-    vocab_size = len(vocab)
     print(f"[{channel_name}] Vocab size: {vocab_size}")
     
     chunk_dirs = get_chunk_dirs(base_channel, chunk_size=50000)
@@ -129,6 +139,9 @@ def run_tfidf_chunked_local(s1, col, analyzer, ngram, k, channel_name, base_chan
         "candidate_entity_id": out_s23,
         "retrieval_channels": [channel_name] * len(out_s1)
     })
+    
+    print(f"[{channel_name}] Saving cache for {split_name} Top-{k}...")
+    df.write_parquet(cache_path)
     
     del X_q
     gc.collect()
@@ -175,7 +188,7 @@ def postal_house_partial_name_blocking(s1_lf: pl.LazyFrame, s23_lf: pl.LazyFrame
     return joined.select([
         pl.col("entity_id").alias("source1_entity_id"),
         pl.col("entity_id_right").alias("candidate_entity_id"),
-        pl.lit("postal_house_fuzzy_name").alias("retrieval_channel")
+        pl.lit("postal_house_fuzzy_name").alias("retrieval_channels")
     ])
 
 
@@ -253,14 +266,14 @@ def run():
     # 2. Run TF-IDF Experiments on Tuning Set
     print("Running TF-IDF Experiments on Tuning Set...")
     # Baseline K values
-    tf_name_50, _ = run_tfidf_chunked_local(s1_tune, "latin_name", "word", (1,1), 50, "tfidf_name", "name_word", corpus_eids)
-    tf_addr_20, _ = run_tfidf_chunked_local(s1_tune, "latin_address", "word", (1,2), 20, "tfidf_addr", "address_word", corpus_eids)
-    tf_char_20, _ = run_tfidf_chunked_local(s1_tune, "latin_name", "char_wb", (3,4), 20, "tfidf_char", "name_char", corpus_eids)
+    tf_name_50, _ = run_tfidf_chunked_local(s1_tune, "latin_name", "word", (1,1), 50, "tfidf_name", "name_word", corpus_eids, 'tune')
+    tf_addr_20, _ = run_tfidf_chunked_local(s1_tune, "latin_address", "word", (1,2), 20, "tfidf_addr", "address_word", corpus_eids, 'tune')
+    tf_char_20, _ = run_tfidf_chunked_local(s1_tune, "latin_name", "char_wb", (3,4), 20, "tfidf_char", "name_char", corpus_eids, 'tune')
     
     # Expanded K values
-    tf_name_75, _ = run_tfidf_chunked_local(s1_tune, "latin_name", "word", (1,1), 75, "tfidf_name", "name_word", corpus_eids)
-    tf_addr_30, _ = run_tfidf_chunked_local(s1_tune, "latin_address", "word", (1,2), 30, "tfidf_addr", "address_word", corpus_eids)
-    tf_char_30, _ = run_tfidf_chunked_local(s1_tune, "latin_name", "char_wb", (3,4), 30, "tfidf_char", "name_char", corpus_eids)
+    tf_name_75, _ = run_tfidf_chunked_local(s1_tune, "latin_name", "word", (1,1), 75, "tfidf_name", "name_word", corpus_eids, 'tune')
+    tf_addr_30, _ = run_tfidf_chunked_local(s1_tune, "latin_address", "word", (1,2), 30, "tfidf_addr", "address_word", corpus_eids, 'tune')
+    tf_char_30, _ = run_tfidf_chunked_local(s1_tune, "latin_name", "char_wb", (3,4), 30, "tfidf_char", "name_char", corpus_eids, 'tune')
     
     # Define Configurations
     configs = {
@@ -286,8 +299,18 @@ def run():
     
     results = {}
     
-    def evaluate_config(cands_list, gt, s1_ids):
-        merged = union_candidates(cands_list)
+    def evaluate_config(cands_list, gt, s1_ids, name):
+        out_dir = "work/task06_candidate_optimization/cache"
+        os.makedirs(out_dir, exist_ok=True)
+        parquet_path = os.path.join(out_dir, f"{name}.parquet")
+        
+        if os.path.exists(parquet_path):
+            print(f"Loading cached merged candidates for {name}...")
+            merged = pl.read_parquet(parquet_path)
+        else:
+            merged = union_candidates(cands_list)
+            merged.write_parquet(parquet_path)
+            
         cand_pairs = set(zip(merged["source1_entity_id"].to_list(), merged["candidate_entity_id"].to_list()))
         retrieved = gt & cand_pairs
         recall = len(retrieved) / len(gt) if len(gt) > 0 else 0
@@ -324,16 +347,32 @@ def run():
         }
         
     baseline_metrics = None
+    partial_json_path = "work/task06_candidate_optimization/cache/candidate_comparison_partial.json"
+    if os.path.exists(partial_json_path):
+        with open(partial_json_path, "r") as f:
+            results = json.load(f)
+            if "Baseline" in results:
+                baseline_metrics = results["Baseline"]
+    else:
+        results = {}
+        
     for name, conf in configs.items():
         if name == "Combined_Best": continue
+        if name in results:
+            print(f"Skipping {name}, already evaluated.")
+            continue
+            
         print(f"Evaluating {name}...")
-        metrics = evaluate_config(conf["blocks"], gt_tune, tune_s1_ids)
+        metrics = evaluate_config(conf["blocks"], gt_tune, tune_s1_ids, name)
         results[name] = metrics
         if name == "Baseline":
             baseline_metrics = metrics
         else:
             inc = ((metrics["total_cands"] - baseline_metrics["total_cands"]) / baseline_metrics["total_cands"]) * 100
             results[name]["cand_increase_pct"] = inc
+            
+        with open(partial_json_path, "w") as f:
+            json.dump(results, f, indent=2)
             
     # Challenge-aware selection logic
     best_combo_blocks = det_base + [tf_name_50, tf_addr_20, tf_char_20] # start with baseline
@@ -349,10 +388,16 @@ def run():
     if results["Exp_NewBlock_PH_Name"]["pair_recall"] - baseline_metrics["pair_recall"] > 0.001 and results["Exp_NewBlock_PH_Name"]["cand_increase_pct"] < 20:
         best_combo_blocks.append(c_new_ph_name)
         
-    metrics = evaluate_config(best_combo_blocks, gt_tune, tune_s1_ids)
-    inc = ((metrics["total_cands"] - baseline_metrics["total_cands"]) / baseline_metrics["total_cands"]) * 100
-    metrics["cand_increase_pct"] = inc
-    results[combo_name] = metrics
+    if combo_name in results:
+        print(f"Skipping {combo_name}, already evaluated.")
+        metrics = results[combo_name]
+    else:
+        metrics = evaluate_config(best_combo_blocks, gt_tune, tune_s1_ids, combo_name)
+        inc = ((metrics["total_cands"] - baseline_metrics["total_cands"]) / baseline_metrics["total_cands"]) * 100
+        metrics["cand_increase_pct"] = inc
+        results[combo_name] = metrics
+        with open(partial_json_path, "w") as f:
+            json.dump(results, f, indent=2)
     
     os.makedirs("work/task06_candidate_optimization", exist_ok=True)
     with open("work/task06_candidate_optimization/candidate_comparison.json", "w") as f:
@@ -378,9 +423,9 @@ def run():
     tf_addr_k = 30 if results["Exp_Addr_K30"]["pair_recall"] - baseline_metrics["pair_recall"] > 0.001 and results["Exp_Addr_K30"]["cand_increase_pct"] < 20 else 20
     tf_char_k = 30 if results["Exp_Char_K30"]["pair_recall"] - baseline_metrics["pair_recall"] > 0.001 and results["Exp_Char_K30"]["cand_increase_pct"] < 20 else 20
     
-    tf_name_eval, _ = run_tfidf_chunked_local(s1_eval, "latin_name", "word", (1,1), tf_name_k, "tfidf_name", "name_word", corpus_eids)
-    tf_addr_eval, _ = run_tfidf_chunked_local(s1_eval, "latin_address", "word", (1,2), tf_addr_k, "tfidf_addr", "address_word", corpus_eids)
-    tf_char_eval, _ = run_tfidf_chunked_local(s1_eval, "latin_name", "char_wb", (3,4), tf_char_k, "tfidf_char", "name_char", corpus_eids)
+    tf_name_eval, _ = run_tfidf_chunked_local(s1_eval, "latin_name", "word", (1,1), tf_name_k, "tfidf_name", "name_word", corpus_eids, 'eval')
+    tf_addr_eval, _ = run_tfidf_chunked_local(s1_eval, "latin_address", "word", (1,2), tf_addr_k, "tfidf_addr", "address_word", corpus_eids, 'eval')
+    tf_char_eval, _ = run_tfidf_chunked_local(s1_eval, "latin_name", "char_wb", (3,4), tf_char_k, "tfidf_char", "name_char", corpus_eids, 'eval')
     
     eval_blocks.extend([tf_name_eval, tf_addr_eval, tf_char_eval])
     
@@ -413,9 +458,9 @@ def run():
         abbreviation_blocking(s1_all.lazy(), s23_lf)
     ]
     
-    tf_name_all, _ = run_tfidf_chunked_local(s1_all, "latin_name", "word", (1,1), tf_name_k, "tfidf_name", "name_word", corpus_eids)
-    tf_addr_all, _ = run_tfidf_chunked_local(s1_all, "latin_address", "word", (1,2), tf_addr_k, "tfidf_addr", "address_word", corpus_eids)
-    tf_char_all, _ = run_tfidf_chunked_local(s1_all, "latin_name", "char_wb", (3,4), tf_char_k, "tfidf_char", "name_char", corpus_eids)
+    tf_name_all, _ = run_tfidf_chunked_local(s1_all, "latin_name", "word", (1,1), tf_name_k, "tfidf_name", "name_word", corpus_eids, 'all')
+    tf_addr_all, _ = run_tfidf_chunked_local(s1_all, "latin_address", "word", (1,2), tf_addr_k, "tfidf_addr", "address_word", corpus_eids, 'all')
+    tf_char_all, _ = run_tfidf_chunked_local(s1_all, "latin_name", "char_wb", (3,4), tf_char_k, "tfidf_char", "name_char", corpus_eids, 'all')
     
     all_blocks.extend([tf_name_all, tf_addr_all, tf_char_all])
     
