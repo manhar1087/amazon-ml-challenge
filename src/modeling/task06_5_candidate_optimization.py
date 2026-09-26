@@ -357,11 +357,25 @@ def run():
         
     baseline_metrics = None
     partial_json_path = "work/task06_candidate_optimization/cache/candidate_comparison_partial.json"
+    os.makedirs(os.path.dirname(partial_json_path), exist_ok=True)
+
+    def _atomic_json_dump(data, path):
+        """Atomic write: write to .tmp then os.replace() to prevent truncation on crash."""
+        tmp = path + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(data, f, indent=2, default=numpy_encoder)
+        os.replace(tmp, path)
+
     if os.path.exists(partial_json_path):
-        with open(partial_json_path, "r") as f:
-            results = json.load(f)
+        try:
+            with open(partial_json_path, "r") as f:
+                results = json.load(f)
             if "Baseline" in results:
                 baseline_metrics = results["Baseline"]
+            print(f"Resumed from partial checkpoint: {list(results.keys())}")
+        except (json.JSONDecodeError, ValueError) as e:
+            print(f"WARNING: Corrupted partial JSON ({e}). Starting fresh.")
+            results = {}
     else:
         results = {}
         
@@ -369,6 +383,8 @@ def run():
         if name == "Combined_Best": continue
         if name in results:
             print(f"Skipping {name}, already evaluated.")
+            if name == "Baseline" and baseline_metrics is None:
+                baseline_metrics = results["Baseline"]
             continue
             
         print(f"Evaluating {name}...")
@@ -380,8 +396,7 @@ def run():
             inc = ((metrics["total_cands"] - baseline_metrics["total_cands"]) / baseline_metrics["total_cands"]) * 100
             results[name]["cand_increase_pct"] = inc
             
-        with open(partial_json_path, "w") as f:
-            json.dump(results, f, indent=2, default=numpy_encoder)
+        _atomic_json_dump(results, partial_json_path)
             
     # Challenge-aware selection logic
     best_combo_blocks = det_base + [tf_name_50, tf_addr_20, tf_char_20] # start with baseline
@@ -405,12 +420,10 @@ def run():
         inc = ((metrics["total_cands"] - baseline_metrics["total_cands"]) / baseline_metrics["total_cands"]) * 100
         metrics["cand_increase_pct"] = inc
         results[combo_name] = metrics
-        with open(partial_json_path, "w") as f:
-            json.dump(results, f, indent=2, default=numpy_encoder)
+        _atomic_json_dump(results, partial_json_path)
     
     os.makedirs("work/task06_candidate_optimization", exist_ok=True)
-    with open("work/task06_candidate_optimization/candidate_comparison.json", "w") as f:
-        json.dump(results, f, indent=2, default=numpy_encoder)
+    _atomic_json_dump(results, "work/task06_candidate_optimization/candidate_comparison.json")
         
     print("\n--- TUNING RESULTS ---")
     for name, mets in results.items():
@@ -452,8 +465,7 @@ def run():
         "char_tfidf_k": tf_char_k,
         "use_postal_house_fuzzy_name": results["Exp_NewBlock_PH_Name"]["pair_recall"] - baseline_metrics["pair_recall"] > 0.001 and results["Exp_NewBlock_PH_Name"]["cand_increase_pct"] < 20
     }
-    with open("work/task06_candidate_optimization/selected_candidate_config.json", "w") as f:
-        json.dump(out_config, f, indent=2, default=numpy_encoder)
+    _atomic_json_dump(out_config, "work/task06_candidate_optimization/selected_candidate_config.json")
     
     # Re-generate optimized candidates for both train and val and save
     print("\n--- PHASE 7: GENERATE OPTIMIZED CANDIDATES ---")
